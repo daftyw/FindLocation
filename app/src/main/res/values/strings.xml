@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">FindLocation</string>
+    <string name="action_settings">Settings</string>
+    <string name="latitude_label">Latitude</string>
+    <string name="longtitude_label">Longtitude</string>
+    <string name="location_updated">Location updated</string>
+    <string name="title_activity_settings">Settings</string>
+
+    <!-- Strings related to Settings -->
+    <string name="pref_use_fuse_api">Using FUSE Service API (Google Play Service)</string>
+    <string name="pref_use_fuse_api_use">Use</string>
+    <string name="pref_use_fuse_api_not_use">Not use</string>
+</resources>

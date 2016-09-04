@@ -38,8 +38,7 @@ import java.util.List;
 public class FindLocationActivityFragment extends Fragment {
 
     private static final String TAG = "FindLocationF";
-    private static final int REQUEST_PERM_ACCESS_LOC = 999;
-    private static final int REQUEST_PERM_FINE_ACCESS_LOC = 888;
+    private static final int REQUEST_PERM_LOCATION_ACCESS_LOC = 888;
     private Location mLocation;
 
     public FindLocationActivityFragment() {
@@ -47,7 +46,6 @@ public class FindLocationActivityFragment extends Fragment {
 
     private TextView mLongtitudeText;
     private TextView mLatitudeText;
-    private boolean mHasPermission;
     private boolean mHasFinePermission;
     private GoogleApiClient mGoogleApiClient;
     private boolean mGoogleApiConnected;
@@ -90,6 +88,7 @@ public class FindLocationActivityFragment extends Fragment {
     public void onResume() {
         super.onResume();
 
+        mUsingFuse = LocationPreference.getSharedPref(getActivity(), LocationPreference.PREF_USE_FUSE);
     }
 
     @Override
@@ -121,8 +120,7 @@ public class FindLocationActivityFragment extends Fragment {
                                            @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
 
-        if(requestCode == REQUEST_PERM_ACCESS_LOC
-                || requestCode == REQUEST_PERM_FINE_ACCESS_LOC) {
+        if(requestCode == REQUEST_PERM_LOCATION_ACCESS_LOC) {
 
             if(grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -136,23 +134,12 @@ public class FindLocationActivityFragment extends Fragment {
     }
 
     private boolean hasPermission() {
-        int permissionStatus =
-                ContextCompat.checkSelfPermission(
-                        getActivity(), Manifest.permission.ACCESS_COARSE_LOCATION);
-
         int permissionFineStatus =
                 ContextCompat.checkSelfPermission(
                         getActivity(), Manifest.permission.ACCESS_FINE_LOCATION);
-        
-        mHasPermission = permissionStatus == PackageManager.PERMISSION_GRANTED;
+
         mHasFinePermission = permissionFineStatus == PackageManager.PERMISSION_GRANTED;
-
         List<String> requestPermissions = new ArrayList<>();
-
-        if(!mHasPermission) {
-            requestPermissions.add(Manifest.permission.ACCESS_COARSE_LOCATION);
-        }
-
         if(!mHasFinePermission) {
             requestPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION);
         }
@@ -160,12 +147,11 @@ public class FindLocationActivityFragment extends Fragment {
         if(requestPermissions.size() > 0) {
             requestPermissions(
                     requestPermissions.toArray(new String[] {}),
-                    REQUEST_PERM_FINE_ACCESS_LOC);
+                    REQUEST_PERM_LOCATION_ACCESS_LOC);
         }
 
-        Log.d(TAG, "hasPermission: " + mHasPermission);
         Log.d(TAG, "hasFinePermission: " + mHasFinePermission);
-        return mHasPermission || mHasFinePermission;
+        return mHasFinePermission;
     }
 
     @SuppressWarnings("ALL")
@@ -177,18 +163,15 @@ public class FindLocationActivityFragment extends Fragment {
 
         locationManager.removeUpdates(mLocationListener);
 
+        Log.d(TAG, "Google API Check = " + mGoogleApiClient + ", Fuse check = " + mUsingFuse);
         if(mGoogleApiConnected && mUsingFuse) {
+            Log.d(TAG, "From FuseLocationAPI");
+
             LocationRequest request = LocationRequest.create();
             request.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-            request.setNumUpdates(100);
-            request.setInterval(0);
+            request.setNumUpdates(1000);
+            request.setInterval(1000);
 
-            mLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-            if(mLocation != null) {
-                setLocationOutput(mLocation);
-            }
-
-            Log.d(TAG, "From FuseLocationAPI");
             LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient,
                     request, new com.google.android.gms.location.LocationListener() {
                 @Override
@@ -200,18 +183,10 @@ public class FindLocationActivityFragment extends Fragment {
 
         } else {
             Log.d(TAG, "From LocationManager");
-
             Criteria criteria = new Criteria();
             criteria.setAccuracy(Criteria.ACCURACY_FINE);
-
             String provider = locationManager.getBestProvider(criteria, true);
-
-            mLocation = locationManager.getLastKnownLocation(provider);
-            if(mLocation != null) {
-                setLocationOutput(mLocation);
-            }
-
-            Log.d(TAG, "Using " + provider);
+            Log.d(TAG, "LocationManager Using " + provider);
             locationManager.requestLocationUpdates(provider, 1000, 0.0f, mLocationListener);
         }
     }
@@ -227,6 +202,7 @@ public class FindLocationActivityFragment extends Fragment {
         @Override
         public void onConnectionSuspended(int i) {
             Log.d(TAG, "Google API connection suspended");
+            mGoogleApiConnected = false;
         }
     };
 

@@ -1,8 +1,6 @@
 package com.augmentis.ayp.findlocation;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Criteria;
@@ -10,32 +8,37 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
-import android.preference.PreferenceManager;
+import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.content.SharedPreferencesCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
  * A placeholder fragment containing a simple view.
  */
-public class FindLocationActivityFragment extends Fragment {
+public class FindLocationActivityFragment extends SupportMapFragment {
 
     private static final String TAG = "FindLocationF";
     private static final int REQUEST_PERM_LOCATION_ACCESS_LOC = 888;
@@ -44,9 +47,8 @@ public class FindLocationActivityFragment extends Fragment {
     public FindLocationActivityFragment() {
     }
 
-    private TextView mLongtitudeText;
-    private TextView mLatitudeText;
     private boolean mHasFinePermission;
+    private GoogleMap mGoogleMap;
     private GoogleApiClient mGoogleApiClient;
     private boolean mGoogleApiConnected;
     private boolean mUsingFuse;
@@ -64,6 +66,14 @@ public class FindLocationActivityFragment extends Fragment {
                 .addApi(LocationServices.API)
                 .addConnectionCallbacks(mConnectionCallbacks)
                 .build();
+
+        getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(GoogleMap googleMap) {
+                mGoogleMap = googleMap;
+                updateUI();
+            }
+        });
     }
 
     @Override
@@ -89,24 +99,13 @@ public class FindLocationActivityFragment extends Fragment {
         super.onResume();
 
         mUsingFuse = LocationPreference.getSharedPref(getActivity(), LocationPreference.PREF_USE_FUSE);
+
+        updateLocation();
     }
 
     @Override
     public void onPause() {
         super.onPause();
-    }
-
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        View v = inflater.inflate(R.layout.fragment_find_location, container, false);
-
-        mLongtitudeText = (TextView) v.findViewById(R.id.longtitude_text);
-        mLatitudeText = (TextView) v.findViewById(R.id.latitude_text);
-
-        updateLocation();
-
-        return v;
     }
 
     private void updateLocation() {
@@ -163,7 +162,7 @@ public class FindLocationActivityFragment extends Fragment {
 
         locationManager.removeUpdates(mLocationListener);
 
-        Log.d(TAG, "Google API Check = " + mGoogleApiClient + ", Fuse check = " + mUsingFuse);
+        Log.d(TAG, "Google API Check = " + mGoogleApiConnected + ", Fuse check = " + mUsingFuse);
         if(mGoogleApiConnected && mUsingFuse) {
             Log.d(TAG, "From FuseLocationAPI");
 
@@ -207,8 +206,16 @@ public class FindLocationActivityFragment extends Fragment {
     };
 
     private void setLocationOutput(Location location) {
-        mLongtitudeText.setText(String.valueOf(location.getLongitude()));
-        mLatitudeText.setText(String.valueOf(location.getLatitude()));
+        String longtitude = String.valueOf(location.getLongitude());
+        String latitude = String.valueOf(location.getLatitude());
+
+        String textToDisplay = latitude + "," + longtitude;
+
+        Toast.makeText(getActivity(),
+                textToDisplay, Toast.LENGTH_LONG).show();
+
+        mLocation = location;
+        updateUI();
     }
 
     LocationListener mLocationListener = new LocationListener() {
@@ -249,4 +256,30 @@ public class FindLocationActivityFragment extends Fragment {
             Log.d(TAG, "Provider: " + provideName + " has been disabled");
         }
     };
+
+    private void updateUI() {
+        if(mGoogleMap == null || mLocation == null) {
+            return;
+        }
+
+        LatLng point = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
+        final LatLng pointStart = new LatLng(13.7218639, 100.5243889);
+
+        MarkerOptions myPointMark = new MarkerOptions().position(point);
+        MarkerOptions startMark = new MarkerOptions().position(pointStart);
+
+        mGoogleMap.clear();
+        mGoogleMap.addMarker(myPointMark);
+        mGoogleMap.addMarker(startMark);
+
+        LatLngBounds bounds = new LatLngBounds.Builder()
+                .include(point)
+                .include(pointStart)
+                .build();
+
+        int margin = getResources().getDimensionPixelSize(R.dimen.map_inset_margin);
+        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, margin);
+
+        mGoogleMap.animateCamera(cameraUpdate);
+    }
 }

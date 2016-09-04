@@ -27,19 +27,6 @@ public class FindLocationActivity extends AppCompatActivity {
         mFindLocationFragment = (FindLocationActivityFragment)
                 fm.findFragmentById(R.id.fragment_find_location);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                /**
-                Snackbar.make(view, R.string.location_updated, Snackbar.LENGTH_LONG)
-                        .setAction("Action", null)
-                        .show();
-                **/
-            }
-        });
-
     }
 
     @Override
